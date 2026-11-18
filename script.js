@@ -1,180 +1,135 @@
-const input = document.getElementById('commandInput');
-const output = document.getElementById('output');
+// ---------- Smooth in-page nav + active link ----------
+const links = document.querySelectorAll('[data-link]');
+const navEl = document.getElementById('siteNav');
+const mobileMenu = document.getElementById('mobileMenu');
+const navToggle = document.getElementById('navToggle');
 
-// Mobile detection
-const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-const commands = {
-    help: `Available commands:
-    help       - Show available commands
-    about      - Learn more about me
-    social     - View my social links
-    projects   - See my work
-    clear      - Clear the terminal
-    welcome    - Return to the welcome screen
-    exit       - Say goodbye`,
-  
-    welcome: `
-
-      ______ __ __ __           ________  $        $            
-      |  _   |__|  |__.-----.   |   _   |__.-----|__.--.--.----.
-      |  1___|  |  |  |  _  |   |   1___|  |     |  |  |  |   _|
-      |  __) |__|__|__|   __|   |____   |__|__|__|  |_____|__|  
-      |  |            |__|      |   1   |       |___|           
-      |  |                      |       |                       
-      \`--'                      \`-------'                       
-
-  Welcome to my terminal portfolio. (Version 1.0.0)  
-  ----  
-  This project's source code can be found on  
-  <a href="https://github.com/yourusername" target="_blank" rel="noopener">GitHub repo</a>  
-  ----  
-  Type help to see available commands.`,
-  
-    about: `Hi, I'm a developer focused on security, UI/UX, and automation scripting.`,
-  
-    social: `Instagram: 
-  GitHub: https://github.com/filip90
-  LinkedIn: https://linkedin.com/in/yourusername`,
-  
-    projects: `• Terminal-Portfolio
-  • IOS app for runners in SwiftUI
-  • harmless Virus in Python
-  • Co-founder of a website (find it through the link in my bio)
-  All that can be found on git Hub link up there.`,
-  
-    exit: `Session closed. Have a good day! 👋`,
-  };
-  
-
-let history = [];
-let histIndex = -1;
-
-// Mobile-friendly input handling
-input.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    const cmd = input.value.trim();
-    executeCommand(cmd);
-    history.unshift(cmd);
-    histIndex = -1;
-    input.value = '';
-    // Keep focus on mobile
-    if (isMobile) {
-      setTimeout(() => input.focus(), 100);
-    }
-  } else if (e.key === 'ArrowUp') {
-    if (histIndex < history.length - 1) {
-      histIndex++;
-      input.value = history[histIndex];
-    }
-  } else if (e.key === 'ArrowDown') {
-    if (histIndex > 0) {
-      histIndex--;
-      input.value = history[histIndex];
-    } else {
-      input.value = '';
-      histIndex = -1;
-    }
-  } else if (e.key === 'Tab') {
+links.forEach((link) => {
+  link.addEventListener('click', (e) => {
+    const href = link.getAttribute('href');
+    if (!href || !href.startsWith('#')) return;
+    const target = document.querySelector(href);
+    if (!target) return;
     e.preventDefault();
-    autocomplete(input.value);
-  }
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    closeMobileMenu();
+    history.replaceState(null, '', href);
+  });
 });
 
-// Mobile touch improvements
-if (isMobile) {
-  // Add touch-friendly command buttons for mobile
-  const mobileCommands = document.createElement('div');
-  mobileCommands.className = 'mobile-commands';
-  mobileCommands.innerHTML = `
-    <div class="mobile-command-btn" data-cmd="help">help</div>
-    <div class="mobile-command-btn" data-cmd="about">about</div>
-    <div class="mobile-command-btn" data-cmd="social">social</div>
-    <div class="mobile-command-btn" data-cmd="projects">projects</div>
-    <div class="mobile-command-btn" data-cmd="clear">clear</div>
-  `;
-  
-  // Insert before the input line
-  const inputLine = document.querySelector('.input-line');
-  inputLine.parentNode.insertBefore(mobileCommands, inputLine);
-  
-  // Add event listeners for mobile command buttons
-  document.querySelectorAll('.mobile-command-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const cmd = btn.getAttribute('data-cmd');
-      executeCommand(cmd);
-      history.unshift(cmd);
-      histIndex = -1;
-      input.focus();
+function closeMobileMenu() {
+  mobileMenu.classList.remove('is-open');
+  navToggle.classList.remove('is-open');
+  navToggle.setAttribute('aria-expanded', 'false');
+}
+
+navToggle.addEventListener('click', () => {
+  const open = mobileMenu.classList.toggle('is-open');
+  navToggle.classList.toggle('is-open', open);
+  navToggle.setAttribute('aria-expanded', String(open));
+});
+
+// ---------- Scroll state: nav bg, progress bar, active section ----------
+const progressFill = document.getElementById('progressFill');
+const sections = document.querySelectorAll('main section[id]');
+const navAnchors = document.querySelectorAll('.nav-links a[data-link]');
+
+function onScroll() {
+  const scrollY = window.scrollY;
+  navEl.classList.toggle('is-scrolled', scrollY > 20);
+
+  const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+  const pct = docHeight > 0 ? (scrollY / docHeight) * 100 : 0;
+  progressFill.style.width = pct + '%';
+
+  let currentId = sections[0]?.id;
+  sections.forEach((section) => {
+    const rect = section.getBoundingClientRect();
+    if (rect.top <= window.innerHeight * 0.35) {
+      currentId = section.id;
+    }
+  });
+  navAnchors.forEach((a) => {
+    a.classList.toggle('is-active', a.getAttribute('href') === `#${currentId}`);
+  });
+}
+document.addEventListener('scroll', onScroll, { passive: true });
+onScroll();
+
+// ---------- Reveal on scroll (IntersectionObserver) ----------
+const revealEls = document.querySelectorAll('.reveal, .reveal-up, .hero-title');
+
+const io = new IntersectionObserver(
+  (entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('in-view');
+        entry.target.querySelectorAll('.reveal-line').forEach((el) => el.classList.add('in-view'));
+        io.unobserve(entry.target);
+      }
+    });
+  },
+  { threshold: 0.15, rootMargin: '0px 0px -60px 0px' }
+);
+revealEls.forEach((el) => io.observe(el));
+
+// hero title reveals immediately on load, not on scroll
+requestAnimationFrame(() => {
+  document.querySelector('.hero-title')?.classList.add('in-view');
+});
+
+// ---------- Custom cursor ----------
+const cursorDot = document.querySelector('.cursor-dot');
+const cursorRing = document.querySelector('.cursor-ring');
+const isFinePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+if (isFinePointer && cursorDot && cursorRing) {
+  let mouseX = window.innerWidth / 2;
+  let mouseY = window.innerHeight / 2;
+  let ringX = mouseX;
+  let ringY = mouseY;
+
+  window.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    cursorDot.style.transform = `translate(${mouseX}px, ${mouseY}px) translate(-50%, -50%)`;
+  });
+
+  function animateRing() {
+    ringX += (mouseX - ringX) * 0.18;
+    ringY += (mouseY - ringY) * 0.18;
+    cursorRing.style.transform = `translate(${ringX}px, ${ringY}px) translate(-50%, -50%)`;
+    requestAnimationFrame(animateRing);
+  }
+  animateRing();
+
+  document.querySelectorAll('a, button, .magnetic').forEach((el) => {
+    el.addEventListener('mouseenter', () => cursorRing.classList.add('is-active'));
+    el.addEventListener('mouseleave', () => cursorRing.classList.remove('is-active'));
+  });
+}
+
+// ---------- Magnetic buttons ----------
+if (isFinePointer) {
+  document.querySelectorAll('.magnetic').forEach((el) => {
+    el.addEventListener('mousemove', (e) => {
+      const rect = el.getBoundingClientRect();
+      const x = e.clientX - rect.left - rect.width / 2;
+      const y = e.clientY - rect.top - rect.height / 2;
+      el.style.transform = `translate(${x * 0.25}px, ${y * 0.35}px)`;
+    });
+    el.addEventListener('mouseleave', () => {
+      el.style.transform = 'translate(0, 0)';
     });
   });
-  
-  // Prevent zoom on double tap
-  let lastTouchEnd = 0;
-  document.addEventListener('touchend', (event) => {
-    const now = (new Date()).getTime();
-    if (now - lastTouchEnd <= 300) {
-      event.preventDefault();
-    }
-    lastTouchEnd = now;
-  }, false);
-  
-  // Improve input focus on mobile
-  document.addEventListener('touchstart', () => {
-    if (document.activeElement !== input) {
-      input.focus();
-    }
-  });
 }
 
-function executeCommand(cmdRaw) {
-  const cmd = cmdRaw.toLowerCase();
-  printLine(`you@portfolio:~$ ${cmdRaw}`, 'prompt');
+// ---------- Footer year ----------
+const yearEl = document.getElementById('year');
+if (yearEl) yearEl.textContent = new Date().getFullYear();
 
-  if (cmd === 'clear') {
-    output.innerHTML = '';
-    return;
-  }
-
-  if (commands[cmd]) {
-    typeText(commands[cmd]);
-  } else {
-    typeText(`Command not found: ${cmd}. Try 'help'`);
-  }
-}
-
-function printLine(text, cls = '') {
-  const line = document.createElement('div');
-  line.className = 'output-line ' + cls;
-  line.textContent = text;
-  output.appendChild(line);
-  scrollToBottom();
-}
-
-function typeText(text, speed = 12) {
-  const line = document.createElement('div');
-  line.className = 'output-line';
-  output.appendChild(line);
-  let i = 0;
-  (function type() {
-    if (i < text.length) {
-      line.textContent += text[i++];
-      scrollToBottom();
-      setTimeout(type, speed);
-    }
-  })();
-}
-
-function scrollToBottom() {
-  output.scrollTop = output.scrollHeight;
-}
-
-function autocomplete(inputVal) {
-  const val = inputVal.toLowerCase();
-  const matches = Object.keys(commands).filter(cmd => cmd.startsWith(val));
-  if (matches.length === 1) {
-    input.value = matches[0];
-  } else if (matches.length > 1) {
-    printLine(matches.join('    '));
-  }
+// ---------- Initial hash scroll ----------
+if (location.hash) {
+  const target = document.querySelector(location.hash);
+  if (target) requestAnimationFrame(() => target.scrollIntoView({ block: 'start' }));
 }
